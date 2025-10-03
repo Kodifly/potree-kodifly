@@ -15,7 +15,7 @@
       Cesium.Ion.defaultAccessToken = window.env.CESIUM_ION_TOKEN_AQIB;
       // "https://data.map.gov.hk/api/3d-data/3dtiles/f2/tileset.json?key=..."
       const hkTilesetURL = window.env.hkTilesetURL;
-      const bimAssetId = window.env.cesium_ion_assets.chai_wan;
+      const chaiWanAssetId = window.env.cesium_ion_assets.chai_wan;
 
       const viewer = new Cesium.Viewer("cesiumContainer", {
         requestRenderMode: true,
@@ -37,7 +37,7 @@
         map3D.show = true;
         viewer.scene.primitives.add(map3D);
         const bimTileset = await Cesium.Cesium3DTileset.fromIonAssetId(
-          bimAssetId
+          chaiWanAssetId
         );
         viewer.scene.primitives.add(bimTileset);
         bimTileset.show = true;
