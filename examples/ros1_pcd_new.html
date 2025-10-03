@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ouster PointCloud2 Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+  </head>
+  <body style="margin: 0; overflow: hidden">
+    <div id="container" style="width: 100vw; height: 100vh"></div>
+
+    <script>
+      const container = document.getElementById("container");
+
+      // THREE.js scene setup
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        container.clientWidth / container.clientHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 10;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
+
+      const geometry = new THREE.BufferGeometry();
+      const material = new THREE.PointsMaterial({
+        size: 0.1,
+        vertexColors: true,
+      });
+      const pointCloud = new THREE.Points(geometry, material);
+      scene.add(pointCloud);
+
+      // Animate
+      function animate() {
+        requestAnimationFrame(animate);
+        pointCloud.rotation.y += 0.001;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // ROS connection
+      const ros = new ROSLIB.Ros({ url: "ws://10.144.118.106:9090" });
+
+      ros.on("connection", () => {
+        console.log("Connected to rosbridge");
+
+        const listener = new ROSLIB.Topic({
+          ros,
+          name: "/ouster/points",
+          messageType: "sensor_msgs/PointCloud2",
+          queue_length: 1,
+          throttle_rate: 100,
+        });
+
+        listener.subscribe((msg) => {
+          const points = parsePointCloud2(msg);
+
+          const positions = new Float32Array(points.length * 3);
+          const colors = new Float32Array(points.length * 3);
+
+          for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            positions.set([p.x, p.y, p.z], i * 3);
+
+            // Normalize intensity (assumes max ~255)
+            const intensity = Math.min(p.intensity / 255, 1.0);
+            const color = new THREE.Color();
+            color.setHSL(0.6 * (1.0 - intensity), 1.0, 0.5); // blue -> red
+
+            colors.set([color.r, color.g, color.b], i * 3);
+          }
+
+          geometry.setAttribute(
+            "position",
+            new THREE.BufferAttribute(positions, 3)
+          );
+          geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+          geometry.computeBoundingSphere();
+        });
+      });
+
+      ros.on("error", (err) => console.error("ROS error:", err));
+      ros.on("close", () => console.log("Connection to rosbridge closed"));
+
+      function parsePointCloud2(msg) {
+        const { width, height, point_step, data, fields, is_bigendian } = msg;
+        const binary = atob(data);
+        const buffer = new ArrayBuffer(binary.length);
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const dv = new DataView(buffer);
+        const totalPoints = width * height;
+        const littleEndian = !is_bigendian;
+
+        const offsets = {};
+        for (const field of fields) {
+          offsets[field.name] = field.offset;
+        }
+
+        const points = [];
+
+        // Optional: skip some points for performance
+        const stride = 4;
+
+        for (let i = 0; i < totalPoints; i += stride) {
+          const base = i * point_step;
+          const x = dv.getFloat32(base + offsets.x, littleEndian);
+          const y = dv.getFloat32(base + offsets.y, littleEndian);
+          const z = dv.getFloat32(base + offsets.z, littleEndian);
+          const intensity = dv.getFloat32(
+            base + offsets.intensity,
+            littleEndian
+          );
+
+          if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+            points.push({ x, y, z, intensity });
+          }
+        }
+
+        return points;
+      }
+    </script>
+  </body>
+</html>

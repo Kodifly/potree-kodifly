@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ROS1 PointCloud2 Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+  </head>
+  <body>
+    <h1>PointCloud2 data</h1>
+    <ul id="messages"></ul>
+    <script>
+      const ros = new ROSLIB.Ros({
+        url: "ws://localhost:9090",
+      });
+
+      ros.on("connection", () => {
+        console.log("Connected to rosbridge");
+
+        const listener = new ROSLIB.Topic({
+          ros: ros,
+          name: "/ouster/points",
+          messageType: "sensor_msgs/PointCloud2",
+          queue_length: 1,
+          throttle_rate: 100,
+        });
+
+        listener.subscribe((message) => {
+          console.log("Received PointCloud2 message:", message);
+        });
+      });
+
+      ros.on("error", (error) => {
+        console.error("Error connecting to rosbridge:", error);
+      });
+
+      ros.on("close", () => {
+        console.log("Connection to rosbridge closed");
+      });
+    </script>
+  </body>
+</html>

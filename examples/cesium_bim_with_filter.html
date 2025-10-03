@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.127/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesium.com/downloads/cesiumjs/releases/1.127/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body,
+      #cesiumContainer {
+        height: 100%;
+        margin: 0;
+      }
+      #filter,
+      #storey {
+        position: absolute;
+        z-index: 10;
+        top: 10px;
+        left: 10px;
+        margin-bottom: 5px;
+      }
+      #storey {
+        top: 50px;
+      }
+      #infoPanel {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <select id="filter"></select>
+    <select id="storey"></select>
+    <div id="cesiumContainer"></div>
+    <div id="infoPanel" hidden></div>
+
+    <script src="./set_env_variables.js"></script>
+    <script type="module">
+      Cesium.Ion.defaultAccessToken = window.env.CESIUM_ION_TOKEN_AQIB;
+      const wsdAssetId = window.env.cesium_ion_assets.wsd;
+
+      const viewer = new Cesium.Viewer("cesiumContainer");
+
+      const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(wsdAssetId);
+      viewer.scene.primitives.add(tileset);
+      await viewer.zoomTo(tileset);
+
+      const classes = new Set();
+      const storeys = new Set();
+
+      function extractMeta(tile) {
+        const content = tile.content;
+        const featuresLength = content.featuresLength;
+        for (let i = 0; i < featuresLength; i++) {
+          const feature = content.getFeature(i);
+
+          const props = feature.getPropertyIds();
+          // console.log("Feature properties:", props);
+          props.forEach((id) => {
+            const value = feature.getProperty(id);
+            if (typeof value === "string") {
+              if (/ifc/i.test(value)) classes.add(value);
+              if (/storey|level/i.test(id)) storeys.add(value);
+            }
+          });
+        }
+        updateDropdowns();
+      }
+
+      tileset.tileLoad.addEventListener((tile) => extractMeta(tile));
+
+      function updateDropdowns() {
+        const filterSelect = document.getElementById("filter");
+        const storeySelect = document.getElementById("storey");
+
+        const update = (select, values, label) => {
+          if (!select.options.length) {
+            const optAll = document.createElement("option");
+            optAll.value = "all";
+            optAll.textContent = `All ${label}`;
+            select.appendChild(optAll);
+          }
+          [...values].sort().forEach((val) => {
+            if (![...select.options].some((o) => o.value === val)) {
+              const opt = document.createElement("option");
+              opt.value = val;
+              opt.textContent = val;
+              select.appendChild(opt);
+            }
+          });
+        };
+
+        update(filterSelect, classes, "Types");
+        update(storeySelect, storeys, "Floors");
+      }
+
+      function applyFilters() {
+        const type = document.getElementById("filter").value;
+        const storey = document.getElementById("storey").value;
+
+        const clauses = [];
+        if (type !== "all") clauses.push(`\${class} === '${type}'`);
+        if (storey !== "all") clauses.push(`\${storey} === '${storey}'`);
+
+        tileset.style = clauses.length
+          ? new Cesium.Cesium3DTileStyle({ show: clauses.join(" && ") })
+          : new Cesium.Cesium3DTileStyle();
+      }
+
+      document
+        .getElementById("filter")
+        .addEventListener("change", applyFilters);
+      document
+        .getElementById("storey")
+        .addEventListener("change", applyFilters);
+
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler.setInputAction((movement) => {
+        const feature = viewer.scene.pick(movement.position);
+        const infoPanel = document.getElementById("infoPanel");
+        if (feature instanceof Cesium.Cesium3DTileFeature) {
+          const props = feature
+            .getPropertyIds()
+            .map((id) => `${id}: ${feature.getProperty(id)}`)
+            .join("<br/>");
+          infoPanel.innerHTML = props;
+          infoPanel.hidden = false;
+        } else {
+          infoPanel.hidden = true;
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ROS2 Multi-Camera Stream</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 20px;
+      }
+      .camera-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .camera {
+        border: 2px solid #ddd;
+        padding: 10px;
+        background: white;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .camera h2 {
+        font-size: 16px;
+        margin: 0 0 10px;
+      }
+      .camera img {
+        width: 320px;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ROS2 Multi-Camera Live Stream</h1>
+    <div class="camera-container">
+      <div class="camera">
+        <h2>Camera 1</h2>
+        <img id="cam1" src="" />
+      </div>
+      <div class="camera">
+        <h2>Camera 2</h2>
+        <img id="cam2" src="" />
+      </div>
+      <div class="camera">
+        <h2>Camera 3</h2>
+        <img id="cam3" src="" />
+      </div>
+      <div class="camera">
+        <h2>Camera 4</h2>
+        <img id="cam4" src="" />
+      </div>
+      <div class="camera">
+        <h2>Camera 5</h2>
+        <img id="cam5" src="" />
+      </div>
+      <div class="camera">
+        <h2>Camera 6</h2>
+        <img id="cam6" src="" />
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+    <script>
+      const ros = new ROSLIB.Ros({
+        url: "ws://localhost:9090", // make sure rosbridge is running on this
+      });
+
+      ros.on("connection", () => {
+        console.log("Connected to ROS WebSocket");
+      });
+
+      const cameraTopics = [
+        { id: "cam1", topic: "/hikrobot/DA3614748/compressed" },
+        { id: "cam2", topic: "/hikrobot/DA4930148/compressed" },
+        { id: "cam3", topic: "/hikrobot/DA5148680/compressed" },
+        { id: "cam4", topic: "/hikrobot/DA5148683/compressed" },
+        { id: "cam5", topic: "/hikrobot/DA5324645/compressed" },
+        { id: "cam6", topic: "/hikrobot/DA5324655/compressed" },
+      ];
+
+      cameraTopics.forEach((cam) => {
+        const img = document.getElementById(cam.id);
+        const topic = new ROSLIB.Topic({
+          ros: ros,
+          name: cam.topic,
+          messageType: "sensor_msgs/CompressedImage",
+        });
+
+        topic.subscribe((message) => {
+          img.src = "data:image/jpeg;base64," + message.data;
+        });
+      });
+    </script>
+  </body>
+</html>

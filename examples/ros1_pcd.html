@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced PointCloud2 Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.136/build/three.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ros3d@1/build/ros3d.js"></script>
+  </head>
+  <body>
+    <h2>PointCloud2 Viewer</h2>
+    <div id="3d-viewer" style="width: 100%; height: 600px"></div>
+
+    <script>
+      // Connect to ROS
+      const ros = new ROSLIB.Ros({
+        url: "ws://localhost:9090", // Ensure rosbridge is running
+      });
+
+      ros.on("connection", () => console.log("Connected to ROS"));
+      ros.on("error", (error) =>
+        console.log("Error connecting to ROS:", error)
+      );
+      ros.on("close", () => console.log("Connection closed"));
+
+      // Create 3D viewer with camera controls
+      const viewer = new ROS3D.Viewer({
+        divID: "3d-viewer",
+        width: window.innerWidth - 20,
+        height: 600,
+        background: "#000000",
+        antialias: true,
+        cameraControls: true, // Allows zoom and rotation
+      });
+
+      // Setup TF Client
+      const tfClient = new ROSLIB.TFClient({
+        ros: ros,
+        angularThres: 0.01,
+        transThres: 0.01,
+        rate: 10.0,
+        fixedFrame: "/os_sensor", // Change this to your fixed frame
+      });
+
+      // Subscribe to PointCloud2 topic with visibility improvements
+      const pointCloud = new ROS3D.PointCloud2({
+        ros: ros,
+        tfClient: tfClient,
+        topic: "/ouster/points", // Change to your topic
+        rootObject: viewer.scene,
+
+        // Custom Material for better visibility
+        material: {
+          size: 0.2, // Bigger point size for better clarity
+          //   color: 0xffffff, // White color for better contrast
+        },
+        max_pts: 100000, // Increase max points to show full cloud,
+      });
+    </script>
+  </body>
+</html>

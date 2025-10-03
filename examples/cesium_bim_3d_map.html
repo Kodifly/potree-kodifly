@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.127/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://cesium.com/downloads/cesiumjs/releases/1.127/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <script src="./set_env_variables.js"></script>
+    <script type="module">
+      Cesium.Ion.defaultAccessToken = window.env.CESIUM_ION_TOKEN_AQIB;
+      // "https://data.map.gov.hk/api/3d-data/3dtiles/f2/tileset.json?key=..."
+      const hkTilesetURL = window.env.hkTilesetURL;
+      const chaiWanAssetId = window.env.cesium_ion_assets.chai_wan;
+
+      const viewer = new Cesium.Viewer("cesiumContainer", {
+        requestRenderMode: true,
+        baseLayerPicker: false,
+        vrButton: false,
+        fullscreenButton: false,
+        homeButton: false,
+        sceneModePicker: false,
+        selectionIndicator: false,
+        geocoder: false,
+        timeline: false,
+        animation: false,
+        navigationHelpButton: false,
+        navigationInstructionsInitiallyVisible: false,
+      });
+
+      try {
+        const map3D = await Cesium.Cesium3DTileset.fromUrl(hkTilesetURL);
+        map3D.show = true;
+        viewer.scene.primitives.add(map3D);
+        const bimTileset = await Cesium.Cesium3DTileset.fromIonAssetId(
+          chaiWanAssetId
+        );
+        viewer.scene.primitives.add(bimTileset);
+        bimTileset.show = true;
+      } catch (error) {
+        console.log(`Error loading tileset: ${error}`);
+      }
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          114.24150965636996,
+          22.267068036528794,
+          151.58336342175144
+        ),
+        orientation: {
+          heading: 6.2831853071795845,
+          pitch: -0.5000177401599384,
+          roll: 6.2831853071795845,
+        },
+        duration: 5,
+      });
+
+      const handleKeyDown = (event) => {
+        if (event.key === "p" && viewer) {
+          // Press 'p' to print
+          const camera = viewer.camera;
+
+          const position = camera.positionCartographic;
+          const longitude = Cesium.Math.toDegrees(position.longitude);
+          const latitude = Cesium.Math.toDegrees(position.latitude);
+          const height = position.height;
+
+          const heading = camera.heading;
+          const pitch = camera.pitch;
+          const roll = camera.roll;
+
+          console.log("🛰️ Current Camera View:");
+          console.log(`
+      viewerRef.current!.camera.flyTo({
+        destination: Cartesian3.fromDegrees(${longitude}, ${latitude}, ${height}),
+        orientation: {
+          heading: ${heading},
+          pitch: ${pitch},
+          roll: ${roll},
+        },
+        duration: 2,
+      });
+            `);
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+    </script>
+  </body>
+</html>

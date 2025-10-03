@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ROS2 PointCloud Viewer</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #viewer {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+
+    <!-- ROS & 3D Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/eventemitter2/lib/eventemitter2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ros3d/build/ros3d.min.js"></script>
+
+    <script>
+      // Connect to ROS
+      const ros = new ROSLIB.Ros({
+        url: "ws://localhost:9090", // rosbridge server URL
+      });
+
+      ros.on("connection", () => console.log("Connected to rosbridge"));
+      ros.on("error", (err) => console.error("Connection error:", err));
+      ros.on("close", () => console.log("Connection closed"));
+
+      // Viewer setup
+      const viewer = new ROS3D.Viewer({
+        divID: "viewer",
+        width: window.innerWidth,
+        height: window.innerHeight,
+        antialias: true,
+        background: "#202020",
+        cameraPose: { x: 0, y: 0, z: 15 },
+      });
+
+      // Add controls
+      viewer.addObject(
+        new ROS3D.Grid({ color: "#555555", cellSize: 1.0, num_cells: 20 })
+      );
+
+      // TF client
+      const tfClient = new ROSLIB.TFClient({
+        ros: ros,
+        fixedFrame: "os_sensor", // Adjust if your frame is different
+        angularThres: 0.01,
+        transThres: 0.01,
+        rate: 10.0,
+      });
+
+      // Point cloud topic
+      const cloud = new ROS3D.PointCloud2({
+        ros: ros,
+        tfClient: tfClient,
+        rootObject: viewer.scene,
+        topic: "/ouster/points", // Change topic if needed
+        material: { size: 0.05, color: 0xffffff },
+      });
+    </script>
+  </body>
+</html>
